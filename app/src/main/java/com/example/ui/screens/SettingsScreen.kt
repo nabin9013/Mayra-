@@ -131,9 +131,10 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.img_mayra_avatar_1794683237081),
+                        painter = painterResource(id = R.drawable.img_mayra_portrait_1795120963893),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
+                        alignment = Alignment.TopCenter,
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)

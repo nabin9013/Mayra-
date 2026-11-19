@@ -2,11 +2,11 @@ package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,7 +32,6 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Menu
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.VerifiedUser
@@ -46,38 +45,26 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.service.AssistantMode
 import com.example.ui.components.CosmicGlassCard
 import com.example.ui.components.MayraVoiceOrb
 import com.example.viewmodel.MayraUiState
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.sin
 
 @Composable
 fun VoiceHubScreen(
@@ -151,66 +138,112 @@ private fun StandbyVoiceHomeView(
             modifier = Modifier.widthIn(max = 560.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top Bar matching uploaded layout (Menu on left, Settings on right)
+            // Top Bar matching uploaded screenshot: Menu | MAYRA AI / YOUR AI ASSISTANT | Settings
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
-                    onClick = onOpenAbout,
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .testTag("open_menu_about_button")
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Menu,
-                        contentDescription = stringResource(id = R.string.nav_about),
-                        tint = MaterialTheme.colorScheme.onSurface
+                    IconButton(
+                        onClick = onOpenAbout,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("open_menu_about_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Menu,
+                            contentDescription = stringResource(id = R.string.nav_about),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.onBackground)) {
+                                append("MAYRA ")
+                            }
+                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                                append("AI")
+                            }
+                        },
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            letterSpacing = 3.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                    Text(
+                        text = "YOUR AI VOICE ASSISTANT",
+                        style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                IconButton(
-                    onClick = onOpenSettings,
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .testTag("open_settings_button")
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = stringResource(id = R.string.nav_settings),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                    IconButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("open_settings_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Settings,
+                            contentDescription = stringResource(id = R.string.nav_settings),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
 
-            // Hero Avatar Orb + Title
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Studio Portrait Stage + Overlapping Glowing Mic Orb + Waveform
             MayraVoiceOrb(
                 mode = runtime.mode,
                 inputAmplitude = runtime.inputAmplitude,
                 outputAmplitude = runtime.outputAmplitude,
+                showStudioPortrait = true,
                 onClick = {
                     if (!hasMicPermission) onRequestPermissions() else onStartLive()
-                }
+                },
+                modifier = Modifier.testTag("mic_primary_button")
             )
 
+            Spacer(modifier = Modifier.height(6.dp))
+
             Text(
-                text = "Mayra",
-                style = MaterialTheme.typography.displaySmall,
-                color = MaterialTheme.colorScheme.primary
+                text = if (!hasMicPermission) "Tap orb to enable mic" else "Tap to Speak",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
             )
             Text(
-                text = "Voice Assistant",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
+                text = if (settings.wakeWordEnabled) {
+                    "or say \"Hey Mayra\""
+                } else {
+                    "Wake-word paused in Settings"
+                },
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.secondary,
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Green-accented "Assistant is ON" switch card matching uploaded photo
+            // Compact Assistant ON/OFF switch pill
             CosmicGlassCard(
                 highlighted = settings.assistantEnabled,
-                modifier = Modifier.fillMaxWidth(0.86f)
+                modifier = Modifier.fillMaxWidth(0.9f)
             ) {
                 Row(
                     modifier = Modifier
@@ -264,83 +297,8 @@ private fun StandbyVoiceHomeView(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Glowing Circular Mic Button overlaid on Neon Waveform (Photo Screen 1)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(94.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                HorizontalNeonSpectrum(
-                    energy = maxOf(runtime.inputAmplitude, 0.14f),
-                    active = settings.assistantEnabled,
-                    primary = MaterialTheme.colorScheme.primary,
-                    secondary = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                )
-
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    border = BorderStroke(
-                        2.5.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.secondary,
-                                MaterialTheme.colorScheme.primary
-                            )
-                        )
-                    ),
-                    shadowElevation = 10.dp,
-                    modifier = Modifier
-                        .size(74.dp)
-                        .minimumInteractiveComponentSize()
-                        .clip(CircleShape)
-                        .clickable {
-                            if (!hasMicPermission) onRequestPermissions() else onStartLive()
-                        }
-                        .testTag("mic_primary_button")
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Mic,
-                            contentDescription = stringResource(id = R.string.cd_mic_toggle),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(34.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = if (!hasMicPermission) "Tap to Grant Mic Access" else "Tap to Speak",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "or",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = if (settings.wakeWordEnabled) {
-                    "Say \"Hey Mayra\""
-                } else {
-                    "Wake-word paused in Settings"
-                },
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.secondary
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Last tool action pill (non-chat hardware execution badge)
             AnimatedVisibility(visible = runtime.lastToolEvent != null) {
                 runtime.lastToolEvent?.let { event ->
                     Surface(
@@ -385,7 +343,6 @@ private fun StandbyVoiceHomeView(
                 }
             }
 
-            // Transparent error surface
             AnimatedVisibility(visible = runtime.errorMessage != null) {
                 runtime.errorMessage?.let { errorText ->
                     Surface(
@@ -461,13 +418,6 @@ private fun ActiveLiveVoiceView(
     onStopLiveSession: () -> Unit
 ) {
     val runtime = uiState.runtime
-    val energy = when (runtime.mode) {
-        AssistantMode.SPEAKING -> maxOf(runtime.outputAmplitude, 0.35f)
-        AssistantMode.LISTENING -> maxOf(runtime.inputAmplitude, 0.22f)
-        AssistantMode.CONNECTING_LIVE,
-        AssistantMode.EXECUTING_TOOL -> 0.30f
-        else -> 0.1f
-    }
 
     Column(
         modifier = Modifier
@@ -482,7 +432,6 @@ private fun ActiveLiveVoiceView(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top bar matching Photo Screen 2 (Avatar + Mayra + Online + Speaker/Interrupt)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -504,9 +453,10 @@ private fun ActiveLiveVoiceView(
                         )
                     }
                     Image(
-                        painter = painterResource(id = R.drawable.img_mayra_avatar_1794683237081),
+                        painter = painterResource(id = R.drawable.img_mayra_portrait_1795120963893),
                         contentDescription = stringResource(id = R.string.cd_mayra_avatar),
                         contentScale = ContentScale.Crop,
+                        alignment = Alignment.TopCenter,
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
@@ -554,7 +504,6 @@ private fun ActiveLiveVoiceView(
                 }
             }
 
-            // Center Purely Voice-Driven Reactive Waveform (No text chat UI)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
@@ -563,10 +512,11 @@ private fun ActiveLiveVoiceView(
                     mode = runtime.mode,
                     inputAmplitude = runtime.inputAmplitude,
                     outputAmplitude = runtime.outputAmplitude,
+                    showStudioPortrait = true,
                     onClick = onInterruptPlayback
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = runtime.statusHeadline,
@@ -574,7 +524,7 @@ private fun ActiveLiveVoiceView(
                     color = MaterialTheme.colorScheme.onBackground,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = runtime.statusSubtext,
                     style = MaterialTheme.typography.bodyMedium,
@@ -583,7 +533,7 @@ private fun ActiveLiveVoiceView(
                 )
 
                 runtime.lastToolEvent?.let { event ->
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
@@ -609,10 +559,9 @@ private fun ActiveLiveVoiceView(
                 }
             }
 
-            // Red Square Stop Button matching Photo Screen 2 ("Tap to Stop")
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(bottom = 10.dp)
             ) {
                 Surface(
                     shape = CircleShape,
@@ -642,58 +591,6 @@ private fun ActiveLiveVoiceView(
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun HorizontalNeonSpectrum(
-    energy: Float,
-    active: Boolean,
-    primary: Color,
-    secondary: Color,
-    modifier: Modifier = Modifier
-) {
-    val smoothEnergy by animateFloatAsState(
-        targetValue = energy,
-        animationSpec = spring(dampingRatio = 0.7f, stiffness = 280f),
-        label = "spectrumEnergy"
-    )
-    val transition = rememberInfiniteTransition(label = "spectrumWave")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "spectrumPhase"
-    )
-
-    Canvas(modifier = modifier) {
-        val barCount = 34
-        val gap = size.width / (barCount * 2.2f)
-        val barWidth = (size.width - gap * (barCount - 1)) / barCount
-        val midY = size.height / 2f
-        val maxHalf = size.height * 0.46f
-
-        for (i in 0 until barCount) {
-            val normDist = abs(i - (barCount - 1) / 2f) / ((barCount - 1) / 2f)
-            val env = 0.35f + 0.65f * (1f - normDist)
-            val wave = if (active) {
-                0.35f + 0.65f * abs(sin(phase + i * 0.42f))
-            } else {
-                0.15f
-            }
-            val halfH = (3.dp.toPx() + maxHalf * env * smoothEnergy * wave).coerceAtMost(maxHalf)
-            val x = i * (barWidth + gap)
-            drawRoundRect(
-                brush = Brush.verticalGradient(listOf(secondary, primary, secondary)),
-                topLeft = Offset(x, midY - halfH),
-                size = Size(barWidth, halfH * 2f),
-                cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
-                alpha = if (active) 0.85f else 0.3f
-            )
         }
     }
 }
