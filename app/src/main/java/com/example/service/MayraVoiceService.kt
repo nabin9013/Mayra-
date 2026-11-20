@@ -327,7 +327,7 @@ class MayraVoiceService : Service() {
                             errorMessage = e.localizedMessage ?: "Failed to connect Gemini Live."
                         )
                     }
-                    delay(2500L)
+                    delay(5000L)
                     if (!currentSettings.wakeWordEnabled) {
                         break
                     }

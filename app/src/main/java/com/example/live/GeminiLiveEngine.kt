@@ -114,28 +114,27 @@ class GeminiLiveEngine(
             text(buildPersonaInstruction(settings))
         }
 
-        val liveModel = Firebase.ai(backend = GenerativeBackend.googleAI()).liveModel(
-            modelName = settings.modelName,
-            generationConfig = liveGenerationConfig {
-                responseModality = ResponseModality.AUDIO
-                maxOutputTokens = settings.maxOutputTokens
-                speechConfig = SpeechConfig(voice = Voice(settings.voiceName))
-            },
+        val (session, connectedModel) = connectWithFallback(
+            settings = settings,
             tools = tools,
             systemInstruction = systemInstruction
         )
-
-        val session = liveModel.connect()
         activeSession = session
-        Log.i(TAG, "Connected Gemini Live session using ${settings.modelName} (${settings.voiceName}).")
+        Log.i(TAG, "Connected Gemini Live session using $connectedModel (${settings.voiceName}).")
 
         try {
             if (triggeredByWakeWord) {
                 // Brief natural greeting cue when awakened by "Hey Mayra"
-                session.send(
-                    text = "The user just called your wake-word 'Hey Mayra'. Give a super quick, playful, sassy 1-sentence greeting ready to help.",
-                    turnComplete = true
-                )
+                try {
+                    session.send(
+                        text = "The user just called your wake-word 'Hey Mayra'. Give a super quick, playful, sassy 1-sentence greeting ready to help.",
+                        turnComplete = true
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Optional wake greeting prompt failed, continuing audio stream", e)
+                }
             }
 
             onPhaseChanged(LivePhase.LISTENING)
@@ -179,6 +178,86 @@ class GeminiLiveEngine(
                 Log.w(TAG, "Error closing LiveSession", e)
             }
         }
+    }
+
+    private data class LiveConnectProfile(
+        val modelName: String,
+        val includeSpeechConfig: Boolean,
+        val includeTools: Boolean
+    )
+
+    private suspend fun connectWithFallback(
+        settings: MayraSettings,
+        tools: List<com.google.firebase.ai.type.Tool>,
+        systemInstruction: com.google.firebase.ai.type.Content
+    ): Pair<LiveSession, String> {
+        val ai = Firebase.ai(backend = GenerativeBackend.googleAI())
+        val candidates = buildList {
+            add(LiveConnectProfile(settings.modelName, includeSpeechConfig = true, includeTools = true))
+            add(LiveConnectProfile(settings.modelName, includeSpeechConfig = false, includeTools = true))
+            if (settings.modelName != MayraSettings.FALLBACK_LIVE_MODEL) {
+                add(
+                    LiveConnectProfile(
+                        MayraSettings.FALLBACK_LIVE_MODEL,
+                        includeSpeechConfig = true,
+                        includeTools = true
+                    )
+                )
+                add(
+                    LiveConnectProfile(
+                        MayraSettings.FALLBACK_LIVE_MODEL,
+                        includeSpeechConfig = false,
+                        includeTools = true
+                    )
+                )
+            }
+            add(
+                LiveConnectProfile(
+                    MayraSettings.FALLBACK_LIVE_MODEL,
+                    includeSpeechConfig = false,
+                    includeTools = false
+                )
+            )
+        }.distinct()
+
+        var lastError: Exception? = null
+        for (profile in candidates) {
+            try {
+                val config = liveGenerationConfig {
+                    responseModality = ResponseModality.AUDIO
+                    if (profile.includeSpeechConfig) {
+                        speechConfig = SpeechConfig(voice = Voice(settings.voiceName))
+                    }
+                }
+                val liveModel = ai.liveModel(
+                    modelName = profile.modelName,
+                    generationConfig = config,
+                    tools = if (profile.includeTools) tools else emptyList(),
+                    systemInstruction = systemInstruction
+                )
+                val session = liveModel.connect()
+                return session to profile.modelName
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(
+                    TAG,
+                    "Live connect failed for model=${profile.modelName} " +
+                        "speech=${profile.includeSpeechConfig} tools=${profile.includeTools}: ${e.message}",
+                    e
+                )
+                lastError = e
+            }
+        }
+
+        val detail = lastError?.localizedMessage.orEmpty()
+        if (detail.contains("Channel was closed", ignoreCase = true)) {
+            throw IllegalStateException(
+                "Live voice channel closed by server. Check internet/Firebase App Check setup or try switching Live model in Settings.",
+                lastError
+            )
+        }
+        throw (lastError ?: IllegalStateException("Unable to connect to Gemini Live."))
     }
 
     @OptIn(PublicPreviewAPI::class)

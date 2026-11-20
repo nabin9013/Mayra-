@@ -11,7 +11,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,11 +36,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -56,12 +58,11 @@ import com.example.R
 import com.example.service.AssistantMode
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Editorial studio portrait stage of Mayra blended seamlessly into the dark cosmic
- * canvas, paired with an overlapping glowing 3D neon microphone orb and live waveform.
+ * Editorial studio portrait stage of Mayra feathered seamlessly with alpha masking
+ * into the cosmic canvas, paired with an overlapping glowing 3D neon microphone orb.
  */
 @Composable
 fun MayraVoiceOrb(
@@ -74,11 +75,11 @@ fun MayraVoiceOrb(
 ) {
     val activeEnergy = when (mode) {
         AssistantMode.SPEAKING -> maxOf(outputAmplitude, 0.28f)
-        AssistantMode.LISTENING -> maxOf(inputAmplitude, 0.16f)
+        AssistantMode.LISTENING -> maxOf(inputAmplitude, 0.18f)
         AssistantMode.CONNECTING_LIVE,
-        AssistantMode.EXECUTING_TOOL -> 0.36f
-        AssistantMode.STANDBY_WAKE_WORD -> maxOf(inputAmplitude * 0.65f, 0.08f)
-        AssistantMode.OFF, AssistantMode.ERROR -> 0.02f
+        AssistantMode.EXECUTING_TOOL -> 0.38f
+        AssistantMode.STANDBY_WAKE_WORD -> maxOf(inputAmplitude * 0.65f, 0.14f)
+        AssistantMode.OFF, AssistantMode.ERROR -> 0.03f
     }
 
     val smoothEnergy by animateFloatAsState(
@@ -132,7 +133,6 @@ fun MayraVoiceOrb(
     val primary = MaterialTheme.colorScheme.primary
     val secondary = MaterialTheme.colorScheme.secondary
     val tertiary = MaterialTheme.colorScheme.tertiary
-    val bgColor = MaterialTheme.colorScheme.background
     val errorColor = MaterialTheme.colorScheme.error
 
     val ringColors = when (mode) {
@@ -160,54 +160,51 @@ fun MayraVoiceOrb(
             contentAlignment = Alignment.BottomCenter
         ) {
             if (showStudioPortrait) {
-                // Full-stage dark-studio portrait with soft vignette fade matching the reference
+                // Full-stage dark-studio portrait feathered to transparent edges via DstIn
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(316.dp)
+                        .size(width = 256.dp, height = 316.dp)
                         .align(Alignment.TopCenter)
                         .graphicsLayer {
+                            compositingStrategy = CompositingStrategy.Offscreen
                             translationY = portraitLift.dp.toPx()
+                        }
+                        .drawWithContent {
+                            drawContent()
+                            // Soft top & bottom transparency fade
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    0.0f to Color.Transparent,
+                                    0.08f to Color.Black,
+                                    0.64f to Color.Black,
+                                    0.98f to Color.Transparent
+                                ),
+                                blendMode = BlendMode.DstIn
+                            )
+                            // Soft left & right transparency feathering
+                            drawRect(
+                                brush = Brush.horizontalGradient(
+                                    0.0f to Color.Transparent,
+                                    0.14f to Color.Black,
+                                    0.86f to Color.Black,
+                                    1.0f to Color.Transparent
+                                ),
+                                blendMode = BlendMode.DstIn
+                            )
                         },
                     contentAlignment = Alignment.TopCenter
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.img_mayra_portrait_1795120963893),
                         contentDescription = stringResource(id = R.string.cd_mayra_avatar),
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
                         alignment = Alignment.TopCenter,
                         modifier = Modifier.fillMaxSize()
-                    )
-
-                    // Seamless studio dark vignette blend on bottom & side edges
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    0.0f to Color.Transparent,
-                                    0.58f to Color.Transparent,
-                                    0.86f to bgColor.copy(alpha = 0.78f),
-                                    1.0f to bgColor
-                                )
-                            )
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.horizontalGradient(
-                                    0.0f to bgColor.copy(alpha = 0.92f),
-                                    0.14f to Color.Transparent,
-                                    0.86f to Color.Transparent,
-                                    1.0f to bgColor.copy(alpha = 0.92f)
-                                )
-                            )
                     )
                 }
             }
 
-            // Overlapping Neon Microphone / Voice Orb (matching reference screenshot)
+            // Overlapping Neon Microphone / Voice Orb
             Box(
                 modifier = Modifier
                     .size(164.dp)
@@ -337,13 +334,14 @@ private fun AudioWaveformStrip(
 
         for (i in 0 until bars) {
             val distanceFromMid = abs(i - (bars - 1) / 2f) / ((bars - 1) / 2f)
-            val envelope = 1f - (distanceFromMid * 0.68f)
+            val envelope = 1f - (distanceFromMid * 0.65f)
             val osc = if (active) {
                 0.35f + 0.65f * abs(sin(phase * 1.4f + i * 0.5f))
             } else {
                 0.15f
             }
-            val halfH = (3.dp.toPx() + maxHalfHeight * envelope * energy * osc)
+            val baseHeight = if (active) (3.dp.toPx() + 4.dp.toPx() * envelope * osc) else 2.5.dp.toPx()
+            val halfH = (baseHeight + maxHalfHeight * envelope * energy * osc)
                 .coerceAtMost(maxHalfHeight)
             val x = i * (barWidth + gap)
 
